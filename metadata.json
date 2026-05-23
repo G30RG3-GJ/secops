@@ -1,0 +1,6 @@
+{
+  "name": "SecOps Console",
+  "description": "Professional network auditing, diagnostic simulator, and defensive security assistant representing core diagnostic utilities.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
