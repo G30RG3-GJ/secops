@@ -231,7 +231,7 @@ fun MainSecOpsScreen(
                             onSelectMetasploitExploit = { exp -> viewModel.selectMetasploitExploit(exp) },
                             onSetMetasploitLport = { lp -> viewModel.setMetasploitLport(lp) },
                             onRunMetasploitExploit = { host -> viewModel.runMetasploitExploitation(host) },
-                            onRunMeterpreterCommand = { cmd -> viewModel.runMetasploitExploitation(metasploitTargetNode ?: networkNodes.first()) }, // Simulates continuous console input
+                            onRunMeterpreterCommand = { cmd -> (metasploitTargetNode ?: networkNodes.firstOrNull())?.let { viewModel.runMetasploitExploitation(it) } }, // Simulates continuous console input
                             burpIsScanning = burpIsScanning,
                             burpScanProgress = burpScanProgress,
                             burpScannedUrls = burpScannedUrls,

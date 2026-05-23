@@ -493,7 +493,7 @@ fun KaliToolsPanel(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Current Payload Fuzz Stream: ${burpScannedUrls.random()}",
+                                text = "Current Payload Fuzz Stream: ${if (burpScannedUrls.isNotEmpty()) burpScannedUrls[burpIntruderPayloadsTried % burpScannedUrls.size] else "Idle"}",
                                 color = Color.White,
                                 fontSize = 10.sp,
                                 fontFamily = FontFamily.Monospace
