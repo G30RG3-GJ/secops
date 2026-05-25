@@ -1,5 +1,8 @@
 package com.example.ui
 
+import android.app.Application
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -8,62 +11,55 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CellTower
-import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.DeviceHub
-import androidx.compose.material.icons.filled.NetworkCheck
-import androidx.compose.material.icons.filled.RadioButtonChecked
-import androidx.compose.material.icons.filled.Radio
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.SmartToy
-import androidx.compose.material.icons.filled.SsidChart
-import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.models.ToolCategory
 import com.example.ui.components.*
-import com.example.ui.theme.TerminalBackground
-import com.example.ui.theme.TerminalGreen
-import com.example.ui.theme.TerminalCyan
-import com.example.ui.theme.SecOpsPrimary
-import com.example.ui.theme.SecOpsBackground
-import com.example.ui.theme.SecOpsSurface
-import com.example.ui.theme.SecOpsSurfaceVariant
-import com.example.ui.theme.SecOpsOnSurface
+import com.example.ui.theme.*
 import com.example.viewmodels.SecurityViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MainSecOpsScreen(
-    viewModel: SecurityViewModel = viewModel(),
+    viewModel: SecurityViewModel = viewModel(
+        factory = ViewModelProvider.AndroidViewModelFactory.getInstance(
+            LocalContext.current.applicationContext as Application
+        )
+    ),
     modifier: Modifier = Modifier
 ) {
-    val pagerState = rememberPagerState(pageCount = { 6 })
+    // 9 pages total
+    val pagerState = rememberPagerState(pageCount = { 9 })
     val coroutineScope = rememberCoroutineScope()
 
     val packets by viewModel.packets.collectAsState()
     val isCapturing by viewModel.isCapturingPackets.collectAsState()
-
     val networkNodes by viewModel.networkNodes.collectAsState()
     val isScanningNetwork by viewModel.isScanningNetwork.collectAsState()
-
     val wifiNetworks by viewModel.wifiNetworks.collectAsState()
     val isScanningWifi by viewModel.isScanningWifi.collectAsState()
     val currentCrackingNetwork by viewModel.currentCrackedNetwork.collectAsState()
+    val deviceStatus by viewModel.deviceStatus.collectAsState()
+    val wifiScanMessage by viewModel.wifiScanMessage.collectAsState()
+    val connectedNetworkInfo by viewModel.connectedNetworkInfo.collectAsState()
 
-    // Metasploit states
+    // Metasploit
     val metasploitStep by viewModel.metasploitStep.collectAsState()
     val metasploitTargetNode by viewModel.metasploitTargetNode.collectAsState()
     val metasploitSelectedExploit by viewModel.metasploitSelectedExploit.collectAsState()
@@ -71,7 +67,7 @@ fun MainSecOpsScreen(
     val metasploitMeterpreterOutput by viewModel.metasploitMeterpreterOutput.collectAsState()
     val metasploitProgress by viewModel.metasploitProgress.collectAsState()
 
-    // Burp Proxy states
+    // Burp
     val burpIsScanning by viewModel.burpIsScanning.collectAsState()
     val burpScanProgress by viewModel.burpScanProgress.collectAsState()
     val burpScannedUrls by viewModel.burpScannedUrls.collectAsState()
@@ -85,80 +81,182 @@ fun MainSecOpsScreen(
     val chatHistory by viewModel.aiChatHistory.collectAsState()
     val aiLoading by viewModel.aiLoading.collectAsState()
 
+    // CCTV
+    val cctvOutput by viewModel.cctvOutput.collectAsState()
+    val isCctvScanning by viewModel.isCctvScanning.collectAsState()
+
+    // SQLMap
+    val sqlmapOutput by viewModel.sqlmapOutput.collectAsState()
+    val isSqlmapRunning by viewModel.isSqlmapRunning.collectAsState()
+
+    // Auto-update / About
+    val updateAvailable by viewModel.updateAvailable.collectAsState()
+    val latestVersion by viewModel.latestVersion.collectAsState()
+
+    // Auto-check update on launch
+    LaunchedEffect(Unit) {
+        viewModel.checkForUpdate()
+    }
+
+    // Parallax background animation
+    val infiniteTransition = rememberInfiniteTransition(label = "bg_anim")
+    val bgOffset by infiniteTransition.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(8000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ), label = "bg_offset"
+    )
+
     Scaffold(
-        modifier = modifier.fillMaxSize().background(SecOpsBackground),
+        modifier = modifier.fillMaxSize(),
+        containerColor = SecOpsBackground,
         topBar = {
             Column {
-                Row(
+                // Parallax top bar
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .background(SecOpsSurface)
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(
+                                    Color(0xFF060E14),
+                                    Color(0xFF0A1628).copy(alpha = 0.95f),
+                                    Color(0xFF060E14)
+                                ),
+                                startX = bgOffset * 300f,
+                                endX = bgOffset * 300f + 800f
+                            )
+                        )
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(10.dp)
-                                .background(TerminalGreen, shape = RoundedCornerShape(5.dp))
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "KALI SECOPS CONSOLE",
-                            color = Color.White,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
-                            letterSpacing = 1.sp
-                        )
-                        Text(
-                            text = " v2026.1",
-                            color = TerminalGreen,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    // Reset button to default state
-                    OutlinedButton(
-                        onClick = { viewModel.resetToDefaultState() },
-                        border = BorderStroke(1.dp, Color(0xFF263345)),
-                        shape = RoundedCornerShape(4.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp),
-                        modifier = Modifier.height(28.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "RESET MATRIX",
-                            color = Color.LightGray,
-                            fontSize = 9.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Glowing dot
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(
+                                        Brush.radialGradient(
+                                            listOf(TerminalGreen, TerminalGreen.copy(0f))
+                                        ),
+                                        CircleShape
+                                    )
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "KALI SECOPS CONSOLE",
+                                    color = Color.White,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 14.sp,
+                                    letterSpacing = 1.5.sp
+                                )
+                                Text(
+                                    text = "by H4cK3R  •  v3.0",
+                                    color = TerminalGreen,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            // Update indicator
+                            if (updateAvailable) {
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = Color(0xFFFFCC00).copy(0.15f),
+                                    border = BorderStroke(1.dp, Color(0xFFFFCC00).copy(0.5f))
+                                ) {
+                                    Text(
+                                        "⬆ UPDATE",
+                                        color = Color(0xFFFFCC00),
+                                        fontSize = 8.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            .clickable {
+                                                coroutineScope.launch { pagerState.animateScrollToPage(8) }
+                                            }
+                                    )
+                                }
+                            }
+                            OutlinedButton(
+                                onClick = { viewModel.resetToDefaultState() },
+                                border = BorderStroke(1.dp, Color(0xFF1E3050)),
+                                shape = RoundedCornerShape(4.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp),
+                                modifier = Modifier.height(26.dp)
+                            ) {
+                                Text(
+                                    text = "RESET",
+                                    color = Color.Gray,
+                                    fontSize = 8.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
                     }
                 }
-                
-                // Secondary Banner warning users about educational simulation nature of Android environments safely
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF13110C)),
-                        shape = RoundedCornerShape(0.dp),
-                        modifier = Modifier.fillMaxWidth().border(width = 1.dp, color = Color(0xFF332010))
+
+                // Status banner
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            if (deviceStatus.rootGranted) Color(0xFF071007) else Color(0xFF100D07)
+                        )
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.horizontalGradient(
+                                listOf(
+                                    Color.Transparent,
+                                    if (deviceStatus.rootGranted) TerminalGreen.copy(0.3f) else SecOpsWarning.copy(0.3f),
+                                    Color.Transparent
+                                )
+                            ),
+                            shape = RoundedCornerShape(0.dp)
+                        )
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "⚠ WARNING: Diagnostics are designed safely inside an Android sandboxed JVM simulation for policy compliant testing and training.",
-                            color = Color(0xFFEAA04C),
-                            fontSize = 8.5.sp,
-                            fontFamily = FontFamily.Monospace,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                            text = if (deviceStatus.rootGranted) {
+                                "✓ ROOT | aircrack:${if (deviceStatus.aircrackAvailable) "✓" else "✗"} airodump:${if (deviceStatus.airodumpAvailable) "✓" else "✗"} aireplay:${if (deviceStatus.aireplayAvailable) "✓" else "✗"}"
+                            } else {
+                                "⚠ NO ROOT — Real WiFi scan active | aircrack requires root"
+                            },
+                            color = if (deviceStatus.rootGranted) SecOpsSuccess else SecOpsWarning,
+                            fontSize = 8.sp,
+                            fontFamily = FontFamily.Monospace
                         )
+                        if (connectedNetworkInfo.ssid != "Not Connected") {
+                            Text(
+                                text = "📶 ${connectedNetworkInfo.ssid}",
+                                color = TerminalCyan,
+                                fontSize = 8.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
                     }
+                }
             }
         },
         bottomBar = {
-            // Elegant scrolling Tab/Index Selector representing Kali diagnostic targets
-            ScrollableTabRow(
-                selectedPageIndex = pagerState.currentPage,
+            KaliTabBar(
+                selectedIndex = pagerState.currentPage,
                 onTabSelected = { index ->
                     coroutineScope.launch { pagerState.animateScrollToPage(index) }
                 }
@@ -171,95 +269,102 @@ fun MainSecOpsScreen(
                 .padding(innerPadding)
                 .background(SecOpsBackground)
         ) {
-            // Display main slider panels representing Wireshark, Nmap, WiFi, Dashboard, and AI Copilot
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.weight(1f)
             ) { page ->
                 when (page) {
-                    0 -> {
-                        // Visual Analytics Panel
-                        SecurityDashboardPane(
-                            vulnerabilities = vulnerabilityMetrics,
-                            protocols = protocolMetrics,
-                            nodes = networkNodes,
-                            wifiNetworks = wifiNetworks,
-                            packets = packets,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                    1 -> {
-                        // Wireshark simulate frame audits
-                        WiresharkSimulator(
-                            packets = packets,
-                            isCapturing = isCapturing,
-                            onToggleCapture = { viewModel.togglePacketCapture() },
-                            onClearPackets = { viewModel.clearPackets() },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                    2 -> {
-                        // Nmap host port sweep discovery
-                        NmapSimulator(
-                            nodes = networkNodes,
-                            isScanning = isScanningNetwork,
-                            onRunScan = { full -> viewModel.runNetworkDiscovery(full) },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                    3 -> {
-                        // WiFi spectrum security probe
-                        WifiSimulator(
-                            networks = wifiNetworks,
-                            isScanning = isScanningWifi,
-                            currentCracking = currentCrackingNetwork,
-                            onToggleScan = { viewModel.toggleWifiScan() },
-                            onStartCracking = { net -> viewModel.startCrackingAttempt(net) },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                    4 -> {
-                        // Kali advanced tools dashboard (Metasploit + Burp Suite simulation)
-                        KaliToolsPanel(
-                            nodes = networkNodes,
-                            metasploitStep = metasploitStep,
-                            metasploitTargetNode = metasploitTargetNode,
-                            metasploitSelectedExploit = metasploitSelectedExploit,
-                            metasploitLport = metasploitLport,
-                            metasploitMeterpreterOutput = metasploitMeterpreterOutput,
-                            metasploitProgress = metasploitProgress,
-                            onSelectMetasploitExploit = { exp -> viewModel.selectMetasploitExploit(exp) },
-                            onSetMetasploitLport = { lp -> viewModel.setMetasploitLport(lp) },
-                            onRunMetasploitExploit = { host -> viewModel.runMetasploitExploitation(host) },
-                            onRunMeterpreterCommand = { cmd -> (metasploitTargetNode ?: networkNodes.firstOrNull())?.let { viewModel.runMetasploitExploitation(it) } }, // Simulates continuous console input
-                            burpIsScanning = burpIsScanning,
-                            burpScanProgress = burpScanProgress,
-                            burpScannedUrls = burpScannedUrls,
-                            burpDiscoveredVulnerabilities = burpDiscoveredVulnerabilities,
-                            burpIntruderPayloadsTried = burpIntruderPayloadsTried,
-                            onRunBurpScan = { viewModel.runBurpProxyScan() },
-                            onStopBurpScan = { viewModel.stopBurpScan() },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                    5 -> {
-                        // Gemini security assistant advisory logic panel
-                        SecOpsSecurityAssistant(
-                            chatHistory = chatHistory,
-                            isLoading = aiLoading,
-                            onSendMessage = { prompt -> viewModel.askSecurityAssistant(prompt) },
-                            onClearChat = { viewModel.clearChat() },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
+                    0 -> SecurityDashboardPane(
+                        vulnerabilities = vulnerabilityMetrics,
+                        protocols = protocolMetrics,
+                        nodes = networkNodes,
+                        wifiNetworks = wifiNetworks,
+                        packets = packets,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    1 -> WiresharkSimulator(
+                        packets = packets,
+                        isCapturing = isCapturing,
+                        onToggleCapture = { viewModel.togglePacketCapture() },
+                        onClearPackets = { viewModel.clearPackets() },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    2 -> NmapSimulator(
+                        nodes = networkNodes,
+                        isScanning = isScanningNetwork,
+                        onRunScan = { full -> viewModel.runNetworkDiscovery(full) },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    3 -> WifiSimulator(
+                        networks = wifiNetworks,
+                        isScanning = isScanningWifi,
+                        currentCracking = currentCrackingNetwork,
+                        onToggleScan = { viewModel.toggleWifiScan() },
+                        onStartCracking = { net -> viewModel.runAircrackSimulation(net) },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    4 -> KaliToolsPanel(
+                        nodes = networkNodes,
+                        metasploitStep = metasploitStep,
+                        metasploitTargetNode = metasploitTargetNode,
+                        metasploitSelectedExploit = metasploitSelectedExploit,
+                        metasploitLport = metasploitLport,
+                        metasploitMeterpreterOutput = metasploitMeterpreterOutput,
+                        metasploitProgress = metasploitProgress,
+                        onSelectMetasploitExploit = { exp -> viewModel.selectMetasploitExploit(exp) },
+                        onSetMetasploitLport = { lp -> viewModel.setMetasploitLport(lp) },
+                        onRunMetasploitExploit = { host -> viewModel.runMetasploitExploitation(host) },
+                        onRunMeterpreterCommand = { _ -> (metasploitTargetNode ?: networkNodes.firstOrNull())?.let { viewModel.runMetasploitExploitation(it) } },
+                        burpIsScanning = burpIsScanning,
+                        burpScanProgress = burpScanProgress,
+                        burpScannedUrls = burpScannedUrls,
+                        burpDiscoveredVulnerabilities = burpDiscoveredVulnerabilities,
+                        burpIntruderPayloadsTried = burpIntruderPayloadsTried,
+                        onRunBurpScan = { viewModel.runBurpProxyScan() },
+                        onStopBurpScan = { viewModel.stopBurpScan() },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    5 -> CCTVPanel(
+                        outputLines = cctvOutput,
+                        isScanning = isCctvScanning,
+                        onDiscoverCameras = { subnet -> viewModel.discoverCctvCameras(subnet) },
+                        onCrackRtsp = { host, port -> viewModel.crackRtspCredentials(host, port) },
+                        onDiscoverOnvif = { viewModel.discoverOnvifDevices() },
+                        onStop = { viewModel.stopCctvScan() },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    6 -> SqlMapPanel(
+                        outputLines = sqlmapOutput,
+                        isRunning = isSqlmapRunning,
+                        onRunScan = { url, data, dump -> viewModel.runSqlmapScan(url, data, dump) },
+                        onDetectWaf = { url -> viewModel.detectWaf(url) },
+                        onRunBuiltIn = { url, data -> viewModel.runBuiltInSqliProbe(url, data) },
+                        onStop = { viewModel.stopSqlmap() },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    7 -> SecOpsSecurityAssistant(
+                        chatHistory = chatHistory,
+                        isLoading = aiLoading,
+                        onSendMessage = { prompt -> viewModel.askSecurityAssistant(prompt) },
+                        onClearChat = { viewModel.clearChat() },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    8 -> AboutPanel(
+                        appVersion = "v3.0",
+                        updateAvailable = updateAvailable,
+                        latestVersion = latestVersion,
+                        onCheckUpdate = { viewModel.checkForUpdate() },
+                        onDownloadUpdate = { viewModel.downloadUpdate() },
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
 
-            // Real-time shell console log feedback at bottom (collapsible screen footer showing exact CLI execution logic)
+            // Real-time log footer
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(180.dp)
+                    .height(160.dp)
             ) {
                 RealtimeLogsViewer(
                     logs = logs,
@@ -270,53 +375,92 @@ fun MainSecOpsScreen(
     }
 }
 
+// ── Tab bar data ──
+private data class TabItem(val label: String, val icon: ImageVector)
+
+private val tabItems = listOf(
+    TabItem("DASH", Icons.Default.Dashboard),
+    TabItem("PCAP", Icons.Default.NetworkCheck),
+    TabItem("NMAP", Icons.Default.DeviceHub),
+    TabItem("WIFI", Icons.Default.Wifi),
+    TabItem("KALI", Icons.Default.Terminal),
+    TabItem("CCTV", Icons.Default.Videocam),
+    TabItem("SQL", Icons.Default.Storage),
+    TabItem("AI", Icons.Default.SmartToy),
+    TabItem("ABOUT", Icons.Default.Info)
+)
+
 @Composable
-fun ScrollableTabRow(
-    selectedPageIndex: Int,
+fun KaliTabBar(
+    selectedIndex: Int,
     onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val items = listOf(
-        Pair("ANALYTICS", Icons.Default.Dashboard),
-        Pair("WIRESHARK", Icons.Default.NetworkCheck),
-        Pair("NMAP SCAN", Icons.Default.DeviceHub),
-        Pair("WIFI PROBE", Icons.Default.Radio),
-        Pair("KALI TOOLS", Icons.Default.Terminal),
-        Pair("AI COPILOT", Icons.Default.SmartToy)
-    )
-
-    Row(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(SecOpsSurface)
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFF0A1020), Color(0xFF060C18))
+                )
+            )
+            .border(
+                width = 1.dp,
+                brush = Brush.horizontalGradient(
+                    listOf(Color.Transparent, TerminalGreen.copy(0.3f), Color.Transparent)
+                ),
+                shape = RoundedCornerShape(0.dp)
+            )
             .navigationBarsPadding()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceAround,
-        verticalAlignment = Alignment.CenterVertically
+            .padding(vertical = 4.dp)
     ) {
-        items.forEachIndexed { idx, pair ->
-            val isSelected = selectedPageIndex == idx
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .clickable { onTabSelected(idx) }
-                    .padding(vertical = 4.dp)
-                    .width(60.dp)
-            ) {
-                Icon(
-                    imageVector = pair.second,
-                    contentDescription = pair.first,
-                    tint = if (isSelected) TerminalGreen else Color.Gray,
-                    modifier = Modifier.size(20.dp)
+        androidx.compose.foundation.lazy.LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceAround,
+            contentPadding = PaddingValues(horizontal = 4.dp)
+        ) {
+            items(tabItems.size) { idx ->
+                val item = tabItems[idx]
+                val isSelected = selectedIndex == idx
+
+                val bgColor by animateColorAsState(
+                    targetValue = if (isSelected) TerminalGreen.copy(0.12f) else Color.Transparent,
+                    animationSpec = tween(200),
+                    label = "tab_bg"
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = pair.first,
-                    color = if (isSelected) Color.White else Color.Gray,
-                    fontSize = 9.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                    fontFamily = FontFamily.Monospace
-                )
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .clickable { onTabSelected(idx) }
+                        .background(bgColor, RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 5.dp)
+                        .width(48.dp)
+                ) {
+                    Icon(
+                        imageVector = item.icon,
+                        contentDescription = item.label,
+                        tint = if (isSelected) TerminalGreen else Color(0xFF4A6A5A),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = item.label,
+                        color = if (isSelected) Color.White else Color(0xFF4A6A5A),
+                        fontSize = 7.5.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    // Active indicator dot
+                    if (isSelected) {
+                        Spacer(Modifier.height(2.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(4.dp)
+                                .background(TerminalGreen, CircleShape)
+                        )
+                    }
+                }
             }
         }
     }
