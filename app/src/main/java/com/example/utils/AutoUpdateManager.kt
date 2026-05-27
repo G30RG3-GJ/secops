@@ -24,7 +24,7 @@ class AutoUpdateManager(private val context: Context) {
         // Change this to your actual GitHub repo URL when you publish releases
         private const val GITHUB_API_URL =
             "https://api.github.com/repos/G30RG3-GJ/secops/releases/latest"
-        const val CURRENT_VERSION_CODE = 3  // bump on each release
+        const val CURRENT_VERSION_CODE = 4  // bump on each release
     }
 
     data class UpdateInfo(
@@ -83,7 +83,7 @@ class AutoUpdateManager(private val context: Context) {
                 }
             }
 
-            if (remoteVersionCode > CURRENT_VERSION_CODE && apkDownloadUrl.isNotEmpty()) {
+            if (remoteVersionCode > BuildConfig.VERSION_CODE && apkDownloadUrl.isNotEmpty()) {
                 UpdateInfo(
                     available = true,
                     latestVersionName = tagName,
