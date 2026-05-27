@@ -151,7 +151,7 @@ fun WifiSimulator(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         LinearProgressIndicator(
-                            progress = currentCracking.pinProgress,
+                            progress = { currentCracking.pinProgress },
                             color = if (pct >= 100) SecOpsSuccess else SecOpsWarning,
                             trackColor = Color(0xFF161F2C),
                             modifier = Modifier.weight(1f).height(6.5.dp)

@@ -1196,7 +1196,7 @@ class SecurityViewModel(application: Application) : AndroidViewModel(application
                 }
                 val bytes = ByteArray(16) { Random.nextInt(0, 255).toByte() }
                 val hex = bytes.joinToString(" ") { "%02X".format(it) } + "  |  " +
-                    bytes.joinToString("") { if (it in 32..126) it.toChar().toString() else "." }
+                    bytes.joinToString("") { if (it in 32..126) it.toInt().toChar().toString() else "." }
 
                 val nextId = (_packets.value.maxOfOrNull { it.id } ?: 0) + 1
                 _packets.update { (listOf(PacketItem(nextId, getCurrentTimestamp(), src, dest, proto, length, info, hex)) + it).take(200) }

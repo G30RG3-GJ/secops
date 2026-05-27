@@ -14,7 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.*
@@ -322,7 +322,7 @@ fun KaliToolsPanel(
 
                         if (metasploitStep == "EXPLOITING") {
                             LinearProgressIndicator(
-                                progress = metasploitProgress,
+                                progress = { metasploitProgress },
                                 color = SecOpsWarning,
                                 trackColor = Color(0xFF161F2C),
                                 modifier = Modifier.fillMaxWidth().height(4.dp).padding(vertical = 4.dp)
@@ -416,7 +416,7 @@ fun KaliToolsPanel(
                                                 }
                                             }
                                         ) {
-                                            Icon(Icons.Default.Send, contentDescription = "Send Meterpreter Command Link", tint = TerminalGreen, modifier = Modifier.size(14.dp))
+                                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send Meterpreter Command Link", tint = TerminalGreen, modifier = Modifier.size(14.dp))
                                         }
                                     }
                                 }
@@ -473,7 +473,7 @@ fun KaliToolsPanel(
 
                 if (burpIsScanning) {
                     LinearProgressIndicator(
-                        progress = burpScanProgress,
+                        progress = { burpScanProgress },
                         color = TerminalCyan,
                         trackColor = Color(0xFF161F2C),
                         modifier = Modifier.fillMaxWidth().height(4.dp)

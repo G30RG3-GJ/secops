@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -198,7 +199,7 @@ fun KaliExtendedToolsPanel(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = { activeTool = "" }, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.ArrowBack, null, tint = TerminalYellow, modifier = Modifier.size(18.dp))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = TerminalYellow, modifier = Modifier.size(18.dp))
                     }
                     Spacer(Modifier.width(8.dp))
                     Text(
