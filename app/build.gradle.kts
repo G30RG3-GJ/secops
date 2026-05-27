@@ -14,11 +14,11 @@ android {
     applicationId = "com.example"
     minSdk = 24
     targetSdk = 36
-    versionCode = 3
-    versionName = "3.0"
+    versionCode = 4
+    versionName = "4.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    buildConfigField("String", "APP_VERSION", "\"3.0\"")
+    buildConfigField("String", "APP_VERSION", "\"4.0\"")
   }
 
   signingConfigs {

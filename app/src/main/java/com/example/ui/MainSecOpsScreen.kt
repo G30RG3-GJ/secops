@@ -44,8 +44,8 @@ fun MainSecOpsScreen(
     ),
     modifier: Modifier = Modifier
 ) {
-    // 9 pages total
-    val pagerState = rememberPagerState(pageCount = { 9 })
+    // 12 pages total (added IoT, Root, KaliExt)
+    val pagerState = rememberPagerState(pageCount = { 12 })
     val coroutineScope = rememberCoroutineScope()
 
     val packets by viewModel.packets.collectAsState()
@@ -93,9 +93,23 @@ fun MainSecOpsScreen(
     val updateAvailable by viewModel.updateAvailable.collectAsState()
     val latestVersion by viewModel.latestVersion.collectAsState()
 
+    // Smart Device / IoT
+    val smartDeviceOutput by viewModel.smartDeviceOutput.collectAsState()
+    val isSmartDeviceScanning by viewModel.isSmartDeviceScanning.collectAsState()
+
+    // Rooting
+    val rootingOutput by viewModel.rootingOutput.collectAsState()
+    val isRootingWorking by viewModel.isRootingWorking.collectAsState()
+
+    // Kali Extended Tools
+    val kaliOutput by viewModel.kaliOutput.collectAsState()
+    val isKaliRunning by viewModel.isKaliRunning.collectAsState()
+    val kaliToolsStatus by viewModel.kaliToolsStatus.collectAsState()
+
     // Auto-check update on launch
     LaunchedEffect(Unit) {
         viewModel.checkForUpdate()
+        viewModel.checkKaliToolsStatus()
     }
 
     // Parallax background animation
@@ -159,7 +173,7 @@ fun MainSecOpsScreen(
                                     letterSpacing = 1.5.sp
                                 )
                                 Text(
-                                    text = "by H4cK3R  •  v3.0",
+                                    text = "by H4cK3R  •  v4.0",
                                     color = TerminalGreen,
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = 9.sp
@@ -349,16 +363,55 @@ fun MainSecOpsScreen(
                         onClearChat = { viewModel.clearChat() },
                         modifier = Modifier.fillMaxSize()
                     )
-                    8 -> AboutPanel(
-                        appVersion = "v3.0",
-                        updateAvailable = updateAvailable,
-                        latestVersion = latestVersion,
-                        onCheckUpdate = { viewModel.checkForUpdate() },
-                        onDownloadUpdate = { viewModel.downloadUpdate() },
+                    8 ->
+                        AboutPanel(
+                            appVersion = "v4.0",
+                            updateAvailable = updateAvailable,
+                            latestVersion = latestVersion,
+                            onCheckUpdate = { viewModel.checkForUpdate() },
+                            onDownloadUpdate = { viewModel.downloadUpdate() },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    9 -> SmartDevicePanel(
+                        outputLines = smartDeviceOutput,
+                        isScanning = isSmartDeviceScanning,
+                        onScanDevices = { subnet -> viewModel.scanSmartDevices(subnet) },
+                        onScanAdb = { subnet -> viewModel.scanAdbDevices(subnet) },
+                        onDiscoverUpnp = { viewModel.discoverUpnpDevices() },
+                        onCrackRouter = { host, port -> viewModel.crackRouterAdmin(host, port) },
+                        onRunAdbCommand = { host, cmd -> viewModel.runAdbTvCommand(host, cmd) },
+                        onStop = { viewModel.stopSmartDeviceScan() },
                         modifier = Modifier.fillMaxSize()
                     )
-                }
-            }
+                    10 -> RootingPanel(
+                        deviceStatus = deviceStatus,
+                        outputLines = rootingOutput,
+                        isWorking = isRootingWorking,
+                        onDownloadMagisk = { viewModel.downloadMagisk() },
+                        onCheckRoot = { viewModel.recheckRoot() },
+                        onStop = { viewModel.stopRooting() },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    11 -> KaliExtendedToolsPanel(
+                        outputLines = kaliOutput,
+                        isRunning = isKaliRunning,
+                        toolsStatus = kaliToolsStatus,
+                        onRunHydra = { t, s, p -> viewModel.runKaliHydra(t, s, p) },
+                        onRunJohn = { h, f -> viewModel.runKaliJohn(h, f) },
+                        onRunGobuster = { u, w -> viewModel.runKaliGobuster(u, w) },
+                        onRunNikto = { t -> viewModel.runKaliNikto(t) },
+                        onRunEnum4linux = { t -> viewModel.runKaliEnum4linux(t) },
+                        onRunNetcat = { h, p -> viewModel.runKaliNetcat(h, p) },
+                        onRunDnsZoneTransfer = { d -> viewModel.runKaliDnsZoneTransfer(d) },
+                        onRunWhois = { t -> viewModel.runKaliWhois(t) },
+                        onRunMasscan = { t, p -> viewModel.runKaliMasscan(t, p) },
+                        onRunHarvester = { d, s -> viewModel.runKaliHarvester(d, s) },
+                        onRunHashcat = { h, t, w -> viewModel.runKaliHashcat(h, t, w) },
+                        onStop = { viewModel.stopKaliTool() },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }  // end when(page)
+            }  // end HorizontalPager
 
             // Real-time log footer
             Box(
@@ -387,7 +440,10 @@ private val tabItems = listOf(
     TabItem("CCTV", Icons.Default.Videocam),
     TabItem("SQL", Icons.Default.Storage),
     TabItem("AI", Icons.Default.SmartToy),
-    TabItem("ABOUT", Icons.Default.Info)
+    TabItem("ABOUT", Icons.Default.Info),
+    TabItem("IOT", Icons.Default.Router),
+    TabItem("ROOT", Icons.Default.AdminPanelSettings),
+    TabItem("TOOLS", Icons.Default.Build)
 )
 
 @Composable
@@ -399,15 +455,15 @@ fun KaliTabBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(
+                    .background(
                 Brush.verticalGradient(
-                    listOf(Color(0xFF0A1020), Color(0xFF060C18))
+                    listOf(Color(0xFF020A04), Color(0xFF010502))
                 )
             )
             .border(
                 width = 1.dp,
                 brush = Brush.horizontalGradient(
-                    listOf(Color.Transparent, TerminalGreen.copy(0.3f), Color.Transparent)
+                    listOf(Color.Transparent, TerminalGreen.copy(0.4f), Color.Transparent)
                 ),
                 shape = RoundedCornerShape(0.dp)
             )
@@ -440,13 +496,13 @@ fun KaliTabBar(
                     Icon(
                         imageVector = item.icon,
                         contentDescription = item.label,
-                        tint = if (isSelected) TerminalGreen else Color(0xFF4A6A5A),
+                        tint = if (isSelected) TerminalGreen else Color(0xFF2A4A2A),
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = item.label,
-                        color = if (isSelected) Color.White else Color(0xFF4A6A5A),
+                        color = if (isSelected) TerminalGreen else Color(0xFF2A4A2A),
                         fontSize = 7.5.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                         fontFamily = FontFamily.Monospace

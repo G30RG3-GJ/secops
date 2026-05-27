@@ -37,6 +37,8 @@ class SecurityViewModel(application: Application) : AndroidViewModel(application
     private val cctvCracker = CCTVCracker()
     private val sqlMapRunner = SqlMapRunner()
     private val autoUpdateManager = AutoUpdateManager(ctx)
+    private val smartDeviceManager = SmartDeviceManager()
+    private val kaliExtendedTools = KaliExtendedTools()
 
     // =============================
     // Device / Environment Status
@@ -236,6 +238,42 @@ class SecurityViewModel(application: Application) : AndroidViewModel(application
     private var sqlmapJob: Job? = null
 
     // =============================
+    // Smart Device / IoT State
+    // =============================
+    private val _smartDeviceOutput = MutableStateFlow<List<String>>(emptyList())
+    val smartDeviceOutput = _smartDeviceOutput.asStateFlow()
+
+    private val _isSmartDeviceScanning = MutableStateFlow(false)
+    val isSmartDeviceScanning = _isSmartDeviceScanning.asStateFlow()
+
+    private var smartDeviceJob: Job? = null
+
+    // =============================
+    // Rooting State
+    // =============================
+    private val _rootingOutput = MutableStateFlow<List<String>>(emptyList())
+    val rootingOutput = _rootingOutput.asStateFlow()
+
+    private val _isRootingWorking = MutableStateFlow(false)
+    val isRootingWorking = _isRootingWorking.asStateFlow()
+
+    private var rootingJob: Job? = null
+
+    // =============================
+    // Kali Extended Tools State
+    // =============================
+    private val _kaliOutput = MutableStateFlow<List<String>>(emptyList())
+    val kaliOutput = _kaliOutput.asStateFlow()
+
+    private val _isKaliRunning = MutableStateFlow(false)
+    val isKaliRunning = _isKaliRunning.asStateFlow()
+
+    private val _kaliToolsStatus = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    val kaliToolsStatus = _kaliToolsStatus.asStateFlow()
+
+    private var kaliJob: Job? = null
+
+    // =============================
     // Auto-Update State
     // =============================
     private val _updateAvailable = MutableStateFlow(false)
@@ -302,6 +340,9 @@ class SecurityViewModel(application: Application) : AndroidViewModel(application
         captureJob?.cancel()
         cctvJob?.cancel()
         sqlmapJob?.cancel()
+        smartDeviceJob?.cancel()
+        rootingJob?.cancel()
+        kaliJob?.cancel()
     }
 
     // =============================
@@ -1583,6 +1624,278 @@ Configure your Gemini API key in `.env` for AI-powered responses."""
         _packets.value = emptyList()
         _networkNodes.value = emptyList()
         addLogEntry("SecOps Console", "Environment reset and re-initialized.", "SUCCESS", 0)
+    }
+
+    // =============================
+    // Smart Device / IoT Functions
+    // =============================
+
+    fun scanSmartDevices(subnet: String) {
+        smartDeviceJob?.cancel()
+        _isSmartDeviceScanning.value = true
+        _smartDeviceOutput.value = emptyList()
+        smartDeviceJob = viewModelScope.launch {
+            smartDeviceManager.scanForSmartDevices(subnet).collect { line ->
+                _smartDeviceOutput.update { it + line }
+            }
+            _isSmartDeviceScanning.value = false
+        }
+    }
+
+    fun scanAdbDevices(subnet: String) {
+        smartDeviceJob?.cancel()
+        _isSmartDeviceScanning.value = true
+        _smartDeviceOutput.value = emptyList()
+        smartDeviceJob = viewModelScope.launch {
+            smartDeviceManager.scanForAdbDevices(subnet).collect { line ->
+                _smartDeviceOutput.update { it + line }
+            }
+            _isSmartDeviceScanning.value = false
+        }
+    }
+
+    fun discoverUpnpDevices() {
+        smartDeviceJob?.cancel()
+        _isSmartDeviceScanning.value = true
+        _smartDeviceOutput.value = emptyList()
+        smartDeviceJob = viewModelScope.launch {
+            smartDeviceManager.discoverUpnpDevices().collect { line ->
+                _smartDeviceOutput.update { it + line }
+            }
+            _isSmartDeviceScanning.value = false
+        }
+    }
+
+    fun crackRouterAdmin(host: String, port: Int) {
+        smartDeviceJob?.cancel()
+        _isSmartDeviceScanning.value = true
+        _smartDeviceOutput.value = emptyList()
+        smartDeviceJob = viewModelScope.launch {
+            smartDeviceManager.crackRouterAdmin(host, port).collect { line ->
+                _smartDeviceOutput.update { it + line }
+            }
+            _isSmartDeviceScanning.value = false
+        }
+    }
+
+    fun runAdbTvCommand(host: String, command: String) {
+        smartDeviceJob?.cancel()
+        _isSmartDeviceScanning.value = true
+        _smartDeviceOutput.value = emptyList()
+        smartDeviceJob = viewModelScope.launch {
+            smartDeviceManager.runAdbCommand(host, command).collect { line ->
+                _smartDeviceOutput.update { it + line }
+            }
+            _isSmartDeviceScanning.value = false
+        }
+    }
+
+    fun stopSmartDeviceScan() {
+        smartDeviceJob?.cancel()
+        _isSmartDeviceScanning.value = false
+        _smartDeviceOutput.update { it + "[*] Scan stopped by user" }
+    }
+
+    // =============================
+    // Rooting Functions
+    // =============================
+
+    fun downloadMagisk() {
+        rootingJob?.cancel()
+        _isRootingWorking.value = true
+        _rootingOutput.value = emptyList()
+        rootingJob = viewModelScope.launch(Dispatchers.IO) {
+            _rootingOutput.update { it + "[*] Checking for latest Magisk release..." }
+            try {
+                val apiUrl = java.net.URL("https://api.github.com/repos/topjohnwu/Magisk/releases/latest")
+                val conn = apiUrl.openConnection() as java.net.HttpURLConnection
+                conn.setRequestProperty("User-Agent", "SecOps-App")
+                conn.connectTimeout = 10000
+                conn.readTimeout = 10000
+
+                if (conn.responseCode == 200) {
+                    val body = conn.inputStream.bufferedReader().readText()
+                    val json = org.json.JSONObject(body)
+                    val tag = json.optString("tag_name")
+                    val assets = json.optJSONArray("assets")
+                    var apkUrl = ""
+                    if (assets != null) {
+                        for (i in 0 until assets.length()) {
+                            val asset = assets.getJSONObject(i)
+                            val name = asset.optString("name")
+                            if (name.endsWith(".apk") && !name.contains("stub")) {
+                                apkUrl = asset.optString("browser_download_url")
+                                break
+                            }
+                        }
+                    }
+                    _rootingOutput.update { it + "[+] Latest Magisk: $tag" }
+                    _rootingOutput.update { it + "[*] Download URL: $apkUrl" }
+                    if (apkUrl.isNotEmpty()) {
+                        _rootingOutput.update { it + "[*] Starting download via DownloadManager..." }
+                        autoUpdateManager.downloadAndInstall(apkUrl, "Magisk-$tag")
+                        _rootingOutput.update { it + "[+] Download started! Check notifications." }
+                        _rootingOutput.update { it + "[INFO] After download: rename .apk to .zip and flash via TWRP" }
+                        _rootingOutput.update { it + "[INFO] OR: Open as app directly to use Magisk's patch method" }
+                    } else {
+                        _rootingOutput.update { it + "[ERROR] Could not find APK in release assets" }
+                    }
+                } else {
+                    _rootingOutput.update { it + "[ERROR] GitHub API returned ${conn.responseCode}" }
+                }
+            } catch (e: Exception) {
+                _rootingOutput.update { it + "[ERROR] ${e.message}" }
+            }
+            _isRootingWorking.value = false
+        }
+    }
+
+    fun recheckRoot() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isRootingWorking.value = true
+            val status = RootChecker.getFullStatus(ctx)
+            _deviceStatus.value = _deviceStatus.value.copy(
+                isRooted = status.hasSuBinary,
+                rootGranted = status.rootGranted
+            )
+            _rootingOutput.value = listOf(
+                "[*] Re-checking root status...",
+                "[*] su binary: ${if (status.hasSuBinary) "FOUND" else "NOT FOUND"}",
+                "[*] Root granted: ${if (status.rootGranted) "YES" else "NO"}",
+                "[*] Root apps: ${if (status.hasRootApps) "FOUND" else "NOT FOUND"}",
+                "[*] Test-keys: ${if (status.isTestKeys) "YES" else "NO"}",
+                if (status.rootGranted) "[+] ROOT ACCESS CONFIRMED" else "[!] No root access"
+            )
+            _isRootingWorking.value = false
+        }
+    }
+
+    fun stopRooting() {
+        rootingJob?.cancel()
+        _isRootingWorking.value = false
+    }
+
+    // =============================
+    // Kali Extended Tool Functions
+    // =============================
+
+    private fun startKaliTool(block: suspend () -> Unit) {
+        kaliJob?.cancel()
+        _isKaliRunning.value = true
+        _kaliOutput.value = emptyList()
+        kaliJob = viewModelScope.launch { block() }
+    }
+
+    fun runKaliHydra(target: String, service: String, port: Int?) {
+        startKaliTool {
+            kaliExtendedTools.runHydra(target, service, port).collect { line ->
+                _kaliOutput.update { it + line }
+            }
+            _isKaliRunning.value = false
+        }
+    }
+
+    fun runKaliJohn(hashFile: String, format: String?) {
+        startKaliTool {
+            kaliExtendedTools.runJohnTheRipper(hashFile, format = format).collect { line ->
+                _kaliOutput.update { it + line }
+            }
+            _isKaliRunning.value = false
+        }
+    }
+
+    fun runKaliGobuster(url: String, wordlist: String) {
+        startKaliTool {
+            kaliExtendedTools.runGobuster(url, wordlist = wordlist).collect { line ->
+                _kaliOutput.update { it + line }
+            }
+            _isKaliRunning.value = false
+        }
+    }
+
+    fun runKaliNikto(target: String) {
+        startKaliTool {
+            kaliExtendedTools.runNikto(target).collect { line ->
+                _kaliOutput.update { it + line }
+            }
+            _isKaliRunning.value = false
+        }
+    }
+
+    fun runKaliEnum4linux(target: String) {
+        startKaliTool {
+            kaliExtendedTools.runEnum4linux(target).collect { line ->
+                _kaliOutput.update { it + line }
+            }
+            _isKaliRunning.value = false
+        }
+    }
+
+    fun runKaliNetcat(host: String, port: Int) {
+        startKaliTool {
+            val mode = if (host.isBlank()) "listen" else "connect"
+            kaliExtendedTools.runNetcat(mode, host, port).collect { line ->
+                _kaliOutput.update { it + line }
+            }
+            _isKaliRunning.value = false
+        }
+    }
+
+    fun runKaliDnsZoneTransfer(domain: String) {
+        startKaliTool {
+            kaliExtendedTools.dnsZoneTransfer(domain).collect { line ->
+                _kaliOutput.update { it + line }
+            }
+            _isKaliRunning.value = false
+        }
+    }
+
+    fun runKaliWhois(target: String) {
+        startKaliTool {
+            kaliExtendedTools.whoisLookup(target).collect { line ->
+                _kaliOutput.update { it + line }
+            }
+            _isKaliRunning.value = false
+        }
+    }
+
+    fun runKaliMasscan(target: String, ports: String) {
+        startKaliTool {
+            kaliExtendedTools.runMasscan(target, ports).collect { line ->
+                _kaliOutput.update { it + line }
+            }
+            _isKaliRunning.value = false
+        }
+    }
+
+    fun runKaliHarvester(domain: String, source: String) {
+        startKaliTool {
+            kaliExtendedTools.runTheHarvester(domain, source).collect { line ->
+                _kaliOutput.update { it + line }
+            }
+            _isKaliRunning.value = false
+        }
+    }
+
+    fun runKaliHashcat(hash: String, hashType: Int, wordlist: String) {
+        startKaliTool {
+            kaliExtendedTools.runHashcat(hash, hashType, wordlist).collect { line ->
+                _kaliOutput.update { it + line }
+            }
+            _isKaliRunning.value = false
+        }
+    }
+
+    fun stopKaliTool() {
+        kaliJob?.cancel()
+        _isKaliRunning.value = false
+        _kaliOutput.update { it + "[*] Tool stopped by user" }
+    }
+
+    fun checkKaliToolsStatus() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _kaliToolsStatus.value = kaliExtendedTools.getToolsStatus()
+        }
     }
 
     // =============================
